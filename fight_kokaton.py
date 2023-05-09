@@ -60,9 +60,6 @@ class Bird:
             (0, +1): pg.transform.rotozoom(img, -90, 1.0),  # 下
             (+1, +1): pg.transform.rotozoom(img, -45, 1.0),  # 右下
         }
-        self._img = self._imgs[(+1, 0)]
-        self._dire = (+1, 0)
-        self._img = self._imgs[self._dire]
         self._dire = (+1, 0)
         self._img = self._imgs[self._dire]
         self._rct = self._img.get_rect()
@@ -92,22 +89,12 @@ class Bird:
                 if key_lst[k]:
                     self._rct.move_ip(-mv[0], -mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
-            self._img = self._imgs[tuple(sum_mv)] 
-            self._dire = tuple(sum_mv)
-            self._img = self._imgs[self._dire] 
             self._dire = tuple(sum_mv)
             self._img = self._imgs[self._dire] 
         screen.blit(self._img, self._rct)
         
-        
     def get_rct(self) -> pg.Rect:
         return self._rct
-
-
-    def get_direction(self) -> tuple[int, int]:
-        return self._dire
-
-
     
     def get_direction(self) -> tuple[int, int]:
         return self._dire
@@ -142,12 +129,8 @@ class Bomb:
             self._vy *= -1
         self._rct.move_ip(self._vx, self._vy)
         screen.blit(self._img, self._rct)
-
     def get_rct(self) -> pg.Rect:
         return self._rct
-        
-
-
 class Beam:
     """
     ビームに関するクラス
@@ -155,24 +138,12 @@ class Beam:
     def __init__(self, bird: Bird):
         """
         ビーム画像Surfaceを生成する
-        引数 bird：こうかとん
         引数 bird：ビームを放つこうかとん
         """
-        self._img = pg.transform.rotozoom(pg.image.load(f"ex03/fig/beam.png"), 0, 2.0)
-        self._vx, self._vy = bird.get_direction()
-        angle = math.degrees(math.atan2(-self._vy, self._vx))
-        self._img = pg.transform.rotozoom(pg.image.load(f"ex03/fig/beam.png"), angle, 2.0)
         self._vx, self._vy = bird.get_direction()
         angle = math.degrees(math.atan2(-self._vy, self._vx))
         self._img = pg.transform.rotozoom(pg.image.load(f"ex03/fig/beam.png"), angle, 2.0)
         self._rct = self._img.get_rect()
-        self._rct.left = bird._rct.right
-        self._rct.centery = bird._rct.centery
-        self._vx, self._vy = +1, 0
-        bird_rct = bird.get_rct()
-        self._rct.centery = bird_rct.centery+bird_rct.height*self._vy
-        self._rct.centerx = bird_rct.centerx+bird_rct.width*self._vx
-
         bird_rct = bird.get_rct()
         self._rct.centery = bird_rct.centery+bird_rct.height*self._vy
         self._rct.centerx = bird_rct.centerx+bird_rct.width*self._vx
@@ -185,31 +156,6 @@ class Beam:
         screen.blit(self._img, self._rct)
     def get_rct(self) -> pg.Rect:
         return self._rct
-class Explosion:
-    """
-    爆発に関するクラス
-    """
-    def __init__(self, obj: Bomb, life: int):
-        """
-        爆弾が爆発するエフェクトを生成する
-        引数1 obj：爆発するBombインスタンス
-        引数2 life：爆発時間
-        """
-        img = pg.image.load("ex03/fig/explosion.gif")
-        self._imgs = [img, pg.transform.flip(img, 1, 1)]
-        self._img = self._imgs[0]
-        self._rct = self._img.get_rect(center=obj.get_rct().center)
-        self._life = life
-    def update(self, screen: pg.Surface):
-        """
-        爆発時間を1減算した爆発経過時間に応じて爆発画像を切り替えることで
-        爆発エフェクトを表現する
-        """
-        self._life -= 1
-        self._img = self._imgs[self._life//10%2]
-        screen.blit(self._img, self._rct)
-    def get_life(self):
-        return self._life
 class Explosion:
     """
     爆発に関するクラス
@@ -256,72 +202,43 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     clock = pg.time.Clock()
     bg_img = pg.image.load("ex03/fig/pg_bg.jpg")
-
     bird = Bird(3, (900, 400))
     bombs = [Bomb() for _ in range(5)]
-    beam = None
-    exps: list[Explosion] = list()
     beams: list[Beam] = list()
     exps: list[Explosion] = list()
     score = Score()
-
     tmr = 0
     while True:
-
+        
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                beam = Beam(bird)
+                beams.append(Beam(bird))
                 beams.append(Beam(bird))
 
         tmr += 1
         screen.blit(bg_img, [0, 0])
-
-        if beam:
+        
+        for j, beam in enumerate(beams):
+            if check_bound(screen.get_rect(), beam.get_rct()) != (True, True):
+                del beams[j]
             beam.update(screen)
-
-
-        if beam:
-            for j, beam in enumerate(beams):
-                if check_bound(screen.get_rect(), beam.get_rct()) != (True, True):
-                    del beams[j]
-                beam.update(screen)
-
         for i, bomb in enumerate(bombs):
             bomb.update(screen)
             if check_collide(bomb, bird):
-                bird.change_img(8, screen, 1)  # こうかとん画像を8.pngに切り替え，1秒間表示させる
-                bird.change_img(8, screen, 1)
                 bird.change_img(8, screen)
                 score.update(screen)
                 pg.display.update()
                 time.sleep(2)
                 return
-
-
-            if beam:
-                beam.update(screen)
+            for j, beam in enumerate(beams):
                 if check_collide(beam, bomb):
                     exps.append(Explosion(bomb, 120))
-                    beam = None
                     del bombs[i]
-                    bird.change_img(6, screen, 0)
-        for i, exp in enumerate(exps):
-            exp.update(screen)
-            if exp.get_life() <= 0:
-                del exps[i]
-
-
-                for j, beam in enumerate(beams):
-                    if check_collide(beam, bomb):
-                        exps.append(Explosion(bomb, 120))
-                        beam = None
-                        del bombs[i]
-                        del beams[j]                    
-                        score.score_up()
-                        bird.change_img(6, screen)
-
+                    del beams[j]                    
+                    score.score_up()
+                    bird.change_img(6, screen)
         for i, exp in enumerate(exps):
             exp.update(screen)
             if exp.get_life() <= 0:
