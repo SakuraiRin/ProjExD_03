@@ -2,12 +2,9 @@ import random
 import sys
 import time
 import pygame as pg
-
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
 NUM_OF_BOMBS = 5
-
-
 def check_bound(area: pg.Rect, obj: pg.Rect) -> tuple[bool, bool]:
     """
     オブジェクトが画面内か画面外かを判定し，真理値タプルを返す
@@ -103,21 +100,17 @@ class Bird:
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self._img = self._imgs[tuple(sum_mv)] 
         screen.blit(self._img, self._rct)
+
     def get_rct(self) -> pg.Rect:
         return self._rct
-
-
 class Bomb:
     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
     dires = [-1, +1]
     """
     爆弾に関するクラス
     """
-    def __init__(self, color: tuple[int, int, int], rad: int):
+    def __init__(self):
         """
-        引数に基づき爆弾円Surfaceを生成する
-        引数1 color：爆弾円の色タプル
-        引数2 rad：爆弾円の半径
         爆弾円Surfaceを生成する
         """
         rad = random.randint(10, 50)
@@ -127,9 +120,7 @@ class Bomb:
         self._img.set_colorkey((0, 0, 0))
         self._rct = self._img.get_rect()
         self._rct.center = random.randint(0, WIDTH), random.randint(0, HEIGHT)
-        self._vx, self._vy = +1, +1
         self._vx, self._vy = random.choice(__class__.dires), random.choice(__class__.dires)
-
     def update(self, screen: pg.Surface):
         """
         爆弾を速度ベクトルself._vx, self._vyに基づき移動させる
@@ -173,12 +164,9 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     clock = pg.time.Clock()
     bg_img = pg.image.load("ex03/fig/pg_bg.jpg")
-
     bird = Bird(3, (900, 400))
-    bomb = Bomb((255, 0, 0), 10)
     bombs = [Bomb() for _ in range(5)]
     beam = None
-
     tmr = 0
     while True:
         for event in pg.event.get():
@@ -189,17 +177,17 @@ def main():
         tmr += 1
         screen.blit(bg_img, [0, 0])
         
-        if bomb:
+        for i, bomb in enumerate(bombs):
             bomb.update(screen)
             if check_collide(bomb, bird):
                 bird.change_img(8, screen, 1)  # こうかとん画像を8.pngに切り替え，1秒間表示させる
                 return
-        if beam and bomb:
-            beam.update(screen)
-            if check_collide(beam, bomb):
-                beam = None
-                bomb = None
-                bird.change_img(6, screen, 0)
+            if beam:
+                beam.update(screen)
+                if check_collide(beam, bomb):
+                    beam = None
+                    del bombs[i]
+                    bird.change_img(6, screen, 0)
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
         pg.display.update()
