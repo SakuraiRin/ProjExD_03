@@ -17,6 +17,23 @@ def check_bound(area: pg.Rect, obj: pg.Rect) -> tuple[bool, bool]:
     if obj.top < area.top or area.bottom < obj.bottom:  # 縦方向のはみ出し判定
         tate = False
     return yoko, tate
+
+
+def check_collide(obj1: "Bird|Bomb", obj2: "Bird|Bomb") -> bool:
+    """
+    2つのオブジェクトの衝突を判定し，真理値を返す
+    引数1 obj1：BirdまたはBombオブジェクト
+    引数2 obj1：BirdまたはBombオブジェクト
+    戻り値：衝突判定結果（衝突している：True／衝突してない：False）
+    """
+    rct1 = obj1.get_rct()
+    rct2 = obj2.get_rct()
+    if rct1.colliderect(rct2):
+        return True
+    else:
+        return False
+
+
 class Bird:
     """
     ゲームキャラクター（こうかとん）に関するクラス
@@ -73,6 +90,9 @@ class Bird:
             return True
         else:
             return False
+    def get_rct(self) -> pg.Rect:
+        return self._rct
+
 
 class Bomb:
     """
@@ -102,6 +122,11 @@ class Bomb:
             self._vy *= -1
         self._rct.move_ip(self._vx, self._vy)
         screen.blit(self._img, self._rct)
+
+    def get_rct(self) -> pg.Rect:
+        return self._rct
+
+
 def main():
     pg.display.set_caption("たたかえ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -117,8 +142,8 @@ def main():
         tmr += 1
         screen.blit(bg_img, [0, 0])
 
-        if bird._rct.colliderect(bomb._rct):
         if bird.check_collide(bomb):
+        if check_collide(bird, bomb):
             bird.change_img(8, screen, 1)  # こうかとん画像を8.pngに切り替え，1秒間表示させる
             return
 
