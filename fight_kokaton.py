@@ -17,8 +17,6 @@ def check_bound(area: pg.Rect, obj: pg.Rect) -> tuple[bool, bool]:
     if obj.top < area.top or area.bottom < obj.bottom:  # 縦方向のはみ出し判定
         tate = False
     return yoko, tate
-
-
 def check_collide(obj1: "Bird|Bomb", obj2: "Bird|Bomb") -> bool:
     """
     2つのオブジェクトの衝突を判定し，真理値を返す
@@ -32,8 +30,6 @@ def check_collide(obj1: "Bird|Bomb", obj2: "Bird|Bomb") -> bool:
         return True
     else:
         return False
-
-
 class Bird:
     """
     ゲームキャラクター（こうかとん）に関するクラス
@@ -58,8 +54,22 @@ class Bird:
             True, 
             False
         )
+        img0 = pg.transform.rotozoom(pg.image.load(f"ex03/fig/{num}.png"), 0, 2.0)
+        img = pg.transform.flip(img0, True, False)  # デフォルトのこうかとん
+        self._imgs = {
+            (+1, 0): img,  # 右
+            (+1, -1): pg.transform.rotozoom(img, 45, 1.0),  # 右上
+            (0, -1): pg.transform.rotozoom(img, 90, 1.0),  # 上
+            (-1, -1): pg.transform.rotozoom(img0, -45, 1.0),  # 左上
+            (-1, 0): img0,  # 左
+            (-1, +1): pg.transform.rotozoom(img0, 45, 1.0),  # 左下
+            (0, +1): pg.transform.rotozoom(img, -90, 1.0),  # 下
+            (+1, +1): pg.transform.rotozoom(img, -45, 1.0),  # 右下
+        }
+        self._img = self._imgs[(+1, 0)]
         self._rct = self._img.get_rect()
         self._rct.center = xy
+
     def change_img(self, num: int, screen: pg.Surface, sec: int):
         """
         こうかとん画像を切り替え，画面に転送する
@@ -76,21 +86,22 @@ class Bird:
         引数1 key_lst：押下キーの真理値リスト
         引数2 screen：画面Surface
         """
+        sum_mv = [0, 0]
         for k, mv in __class__._delta.items():
             if key_lst[k]:
                 self._rct.move_ip(mv)
+                sum_mv[0] += mv[0]
+                sum_mv[1] += mv[1]
         if check_bound(screen.get_rect(), self._rct) != (True, True):
             for k, mv in __class__._delta.items():
                 if key_lst[k]:
                     self._rct.move_ip(-mv[0], -mv[1])
+        if not (sum_mv[0] == 0 and sum_mv[1] == 0):
+            self._img = self._imgs[tuple(sum_mv)] 
         screen.blit(self._img, self._rct)
 
-    def check_collide(self, bb: "Bomb") -> bool:
-        if self._rct.colliderect(bb._rct):
-            return True
-        else:
-            return False
     def get_rct(self) -> pg.Rect:
+     def get_rct(self) -> pg.Rect:
         return self._rct
 
 
@@ -122,11 +133,32 @@ class Bomb:
             self._vy *= -1
         self._rct.move_ip(self._vx, self._vy)
         screen.blit(self._img, self._rct)
-
     def get_rct(self) -> pg.Rect:
         return self._rct
-
-
+        
+class Beam:
+    """
+    ビームに関するクラス
+    """
+    def __init__(self, bird: Bird):
+        """
+        ビーム画像Surfaceを生成する
+        引数 bird：こうかとん
+        """
+        self._img = pg.transform.rotozoom(pg.image.load(f"ex03/fig/beam.png"), 0, 2.0)
+        self._rct = self._img.get_rect()
+        self._rct.left = bird._rct.right
+        self._rct.centery = bird._rct.centery
+        self._vx, self._vy = +1, 0
+    def update(self, screen: pg.Surface):
+        """
+        ビームを速度ベクトルself._vx, self._vyに基づき移動させる
+        引数 screen：画面Surface
+        """
+        self._rct.move_ip(self._vx, self._vy)
+        screen.blit(self._img, self._rct)
+    def get_rct(self) -> pg.Rect:
+        return self._rct
 def main():
     pg.display.set_caption("たたかえ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -134,22 +166,30 @@ def main():
     bg_img = pg.image.load("ex03/fig/pg_bg.jpg")
     bird = Bird(3, (900, 400))
     bomb = Bomb((255, 0, 0), 10)
+    beam = None
     tmr = 0
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
+            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                beam = Beam(bird)
         tmr += 1
         screen.blit(bg_img, [0, 0])
-
-        if bird.check_collide(bomb):
-        if check_collide(bird, bomb):
-            bird.change_img(8, screen, 1)  # こうかとん画像を8.pngに切り替え，1秒間表示させる
-            return
-
+        
+        if bomb:
+            bomb.update(screen)
+            if check_collide(bomb, bird):
+                bird.change_img(8, screen, 1)  # こうかとん画像を8.pngに切り替え，1秒間表示させる
+                return
+        if beam and bomb:
+            beam.update(screen)
+            if check_collide(beam, bomb):
+                beam = None
+                bomb = None
+                bird.change_img(6, screen, 0)
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
-        bomb.update(screen)
         pg.display.update()
         clock.tick(1000)
 if __name__ == "__main__":
